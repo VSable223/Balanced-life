@@ -32,7 +32,7 @@ function TasksPage() {
 
     const fetchTasks = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/tasks/sync", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/sync`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId }),
@@ -84,7 +84,7 @@ function TasksPage() {
 
     try {
       if (editingTask) {
-        const res = await fetch(`http://localhost:5000/api/tasks/${editingTask._id}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${editingTask._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...formData, userId }),
@@ -93,7 +93,7 @@ function TasksPage() {
         const updatedTask = await res.json();
         setTasks((prev) => prev.map((t) => (t._id === updatedTask._id ? updatedTask : t)));
       } else {
-        const res = await fetch("http://localhost:5000/api/tasks", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...formData, userId }),
@@ -111,7 +111,7 @@ function TasksPage() {
   // Delete task
   const handleDeleteTask = async (taskId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, { method: "DELETE" });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
       setTasks((prev) => prev.filter((t) => t._id !== taskId));
       setCompletedTasks((prev) => prev.filter((t) => t._id !== taskId));
@@ -153,7 +153,7 @@ function TasksPage() {
   const handleCompleteTask = async (taskId) => {
     try {
       const taskToComplete = tasks.find((t) => t._id === taskId);
-      const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...taskToComplete, completed: true }),
@@ -172,7 +172,7 @@ function TasksPage() {
   const handlePrioritizeAll = async () => {
     try {
       if (!userId) return;
-      const res = await fetch("http://localhost:5000/api/ai/task-prioritization", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/task-prioritization`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),

@@ -34,7 +34,7 @@ function Dashboard() {
     async function fetchData() {
       try {
         // Fetch tasks
-        const tasksRes = await fetch("http://localhost:5000/api/tasks/sync", {
+        const tasksRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/sync`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId }),
@@ -44,7 +44,7 @@ function Dashboard() {
         setTasks(tasksData.tasks || []);
 
         // Fetch report (Completed vs Pending)
-        const reportRes = await fetch(`http://localhost:5000/api/tasks/report/${userId}`, {
+        const reportRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/report/${userId}`, {
           method: "GET",
         });
         const reportData = await reportRes.json();

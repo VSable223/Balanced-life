@@ -22,7 +22,7 @@ function TaskReportPage() {
 
     const fetchTasks = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/tasks/sync", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/sync`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId }),

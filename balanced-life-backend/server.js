@@ -14,7 +14,7 @@ if (!process.env.MONGO_URI) {
 }
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: "https://your-frontend-url.vercel.app" })); // Update with your frontend URL
 app.use(express.json());
 
 // ✅ MongoDB Connection

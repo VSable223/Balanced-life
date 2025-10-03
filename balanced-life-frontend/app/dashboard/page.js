@@ -1,33 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { PieChart, Pie, Cell, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
+import Navbar from "../components/Navbar";
 import withAuth from "../components/withAuth";
-import {
-  FaHome,
-  FaTasks,
-  FaInfoCircle,
-  FaUserAlt,
-  FaChevronDown,
-  FaRunning,
-  FaMusic,
-  FaBed,
-  FaTint,
-  FaHeart,
-  FaSpa,
-} from "react-icons/fa";
+import { FaRunning, FaMusic, FaBed, FaTint, FaHeart, FaSpa } from "react-icons/fa";
+
+// Utility to convert hex color to rgba
+const hexToRgba = (hex, alpha = 0.2) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+};
 
 function Dashboard() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
   const [tasks, setTasks] = useState([]);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  // Get userId from session
   const userId = session?.user?.id;
 
   useEffect(() => {
@@ -38,7 +33,7 @@ function Dashboard() {
 
     async function fetchData() {
       try {
-        // Fetch Tasks
+        // Fetch tasks
         const tasksRes = await fetch("http://localhost:5000/api/tasks/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -48,21 +43,11 @@ function Dashboard() {
         const tasksData = await tasksRes.json();
         setTasks(tasksData.tasks || []);
 
-        // Fetch Weekly Report
-        const reportRes = await fetch("http://localhost:5000/api/ai/balance-analyzer", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
+        // Fetch report (Completed vs Pending)
+        const reportRes = await fetch(`http://localhost:5000/api/tasks/report/${userId}`, {
+          method: "GET",
         });
-        
-        const responseText = await reportRes.text(); // Read response as text
-        console.log("Response:", responseText);
-        
-        if (!reportRes.ok) {
-          throw new Error(`Error: ${reportRes.status} - ${responseText}`);
-        }
-        
-        const reportData = JSON.parse(responseText); // Parse JSON manually
+        const reportData = await reportRes.json();
         setReport(reportData);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -74,7 +59,6 @@ function Dashboard() {
     fetchData();
   }, [userId]);
 
-  // Dynamic Greeting
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good Morning";
@@ -82,13 +66,13 @@ function Dashboard() {
     return "Good Evening";
   };
 
-  // Motivational Quotes
   const quotes = [
     "Small daily improvements are the key to success.",
     "Believe in yourself and all that you are.",
     "Success is the sum of small efforts repeated daily.",
   ];
   const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+
   const selfCareActivities = [
     { icon: <FaTint className="text-blue-400 text-3xl" />, title: "Stay Hydrated", description: "Drink at least 8 glasses of water daily." },
     { icon: <FaRunning className="text-green-400 text-3xl" />, title: "Exercise", description: "Move your body for at least 30 minutes." },
@@ -98,52 +82,25 @@ function Dashboard() {
     { icon: <FaSpa className="text-pink-400 text-3xl" />, title: "Meditation", description: "Calm your mind with deep breathing." },
   ];
 
-
-  // Weekly Report Data for Pie Chart
-  const pieData = report
-    ? Object.entries(report).map(([key, value]) => ({ name: key, value }))
-    : [];
-
-  // Task Priority Colors
   const priorityColors = {
     High: "#FF4D4D",
     Medium: "#FFA500",
     Low: "#4CAF50",
   };
 
+  // ✅ Only keep Completion Pie Data
+  const completionPieData = [
+    { name: "Completed", value: report?.summary?.completed || 0 },
+    { name: "Pending", value: report?.summary?.pending || 0 },
+  ];
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-white">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white">
-      {/* Navbar */}
-      <nav className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-black/50 backdrop-blur-md shadow-lg">
-        <h1 className="text-3xl font-bold tracking-wide text-yellow-300">BalancedLife</h1>
-        <div className="flex space-x-6">
-          <a href="/dashboard" className="hover:text-yellow-300 flex items-center">
-            <FaHome className="mr-1" /> Dashboard
-          </a>
-          <a href="/tasks" className="hover:text-yellow-300 flex items-center">
-            <FaTasks className="mr-1" /> Tasks
-          </a>
-          <a href="/aboutus" className="hover:text-yellow-300 flex items-center">
-            <FaInfoCircle className="mr-1" /> About Us
-          </a>
-        </div>
-        <div className="relative">
-          <button
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center space-x-1 bg-black/40 px-3 py-2 rounded-full hover:bg-black/60"
-          >
-            <FaUserAlt className="text-xl" />
-            <FaChevronDown className={`transition-transform ${dropdownOpen ? "rotate-180" : "rotate-0"}`} />
-          </button>
-          {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-black/70 backdrop-blur-md shadow-md rounded-lg py-2">
-              <a href="/profile" className="block px-4 py-2 hover:bg-black/50">Profile</a>
-              <a href="/report" className="block px-4 py-2 hover:bg-black/50">Task Report</a>
-              <button onClick={() => signOut()} className="w-full text-left px-4 py-2 hover:bg-red-500">Logout</button>
-            </div>
-          )}
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Greeting & Quote */}
       <div className="text-center mt-8">
@@ -151,25 +108,47 @@ function Dashboard() {
         <p className="text-gray-200 italic mt-2">"{randomQuote}"</p>
       </div>
 
-      {/* Task Flowchart */}
+      {/* Task Flow */}
       <section className="p-6 mt-6">
-        <h3 className="text-2xl font-semibold">Task Flow</h3>
+        <h3 className="text-2xl font-semibold">Task Flow (Incomplete Tasks)</h3>
         <div className="mt-4 flex flex-col items-center space-y-6">
           {tasks.length > 0 ? (
-            tasks.map((task, index) => (
+            tasks.filter((task) => !task.completed).map((task, idx) => (
               <div
-                key={index}
-                className="px-6 py-3 rounded-md shadow-md text-center w-3/4"
-                style={{ backgroundColor: priorityColors[task.priority] || "#ffffff" }}
+                key={idx}
+                className="px-6 py-4 rounded-lg shadow-md text-center w-3/4 border border-white/30"
+                style={{
+                  backgroundColor: hexToRgba(priorityColors[task.priority] || "#ffffff", 0.2),
+                  borderLeft: `6px solid ${priorityColors[task.priority] || "#ffffff"}`,
+                }}
               >
                 <h4 className="text-lg font-bold">{task.title}</h4>
-                <p>📅 Deadline: {task.deadline}</p>
-                <p>🔥 Priority: {task.priority}</p>
+                <p>📅 Deadline: <span className="font-medium">{task.deadline ? new Date(task.deadline).toLocaleString() : "No deadline"}</span></p>
+                <p>🔥 Priority: <span className="font-medium">{task.priority}</span></p>
+                <p>⏳ Time Required: <span className="font-medium">{task.duration ? `${task.duration} min` : "Not specified"}</span></p>
               </div>
             ))
           ) : (
-            <p className="text-gray-300">No tasks available.</p>
+            <p className="text-gray-300">No incomplete tasks available.</p>
           )}
+        </div>
+      </section>
+
+      {/* Report Section */}
+      <section className="p-6">
+        <h3 className="text-2xl font-semibold text-center">Summary Report</h3>
+        <div className="flex justify-center mt-6">
+          <div className="bg-black/30 p-4 rounded-lg shadow-lg">
+            <h4 className="text-xl font-semibold text-center mb-4">Completion Status</h4>
+            <PieChart width={800} height={500}>
+              <Pie data={completionPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={150}>
+                <Cell fill="#4CAF50" /> {/* Completed */}
+                <Cell fill="#FF4D4D" /> {/* Pending */}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </div>
         </div>
       </section>
 
@@ -177,31 +156,14 @@ function Dashboard() {
       <section className="p-6">
         <h3 className="text-2xl font-semibold text-center">Recommended Self-Care Activities</h3>
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6">
-          {selfCareActivities.map((activity, index) => (
-            <div key={index} className="p-6 bg-black/40 rounded-lg flex flex-col items-center shadow-lg hover:scale-105 transition-transform">
+          {selfCareActivities.map((activity, idx) => (
+            <div key={idx} className="p-6 bg-black/40 rounded-lg flex flex-col items-center shadow-lg hover:scale-105 transition-transform">
               {activity.icon}
               <h4 className="mt-2 text-lg font-semibold">{activity.title}</h4>
               <p className="text-gray-300 text-sm mt-1 text-center">{activity.description}</p>
             </div>
           ))}
         </div>
-      </section>
-
-      {/* Weekly Report (Pie Chart) */}
-      <section className="p-6">
-        <h3 className="text-2xl font-semibold">Weekly Report</h3>
-        {report ? (
-          <PieChart width={400} height={300}>
-            <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100}>
-              {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={["#FF4D4D", "#FFA500", "#4CAF50"][index % 3]} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        ) : (
-          <p className="text-gray-300 mt-4">No report available.</p>
-        )}
       </section>
     </div>
   );

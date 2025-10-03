@@ -11,11 +11,13 @@ export default function withAuth(Component) {
 
     useEffect(() => {
       if (status === "unauthenticated") {
-        router.push("/login"); // Redirect to login page if not authenticated
+        router.push("/login");
       }
     }, [status, router]);
 
-    if (status === "loading") return <p>Loading...</p>;
+    // if (status === "loading") {
+    //   return <p>Loading...</p>;
+    // }
 
     return <Component {...props} />;
   };

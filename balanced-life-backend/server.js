@@ -6,6 +6,8 @@ import dotenv from "dotenv";
 // ✅ Load environment variables
 dotenv.config();
 
+console.log("starting server...");
+
 if (!process.env.MONGO_URI) {
   console.error("❌ MONGO_URI is undefined. Check your .env file!");
   process.exit(1);
@@ -71,53 +73,27 @@ app.get("/api/tasks", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// ✅ API: Notification Routes 
 import notificationRoutes from './routes/notificationRoutes.js';
 app.use('/api/notifications', notificationRoutes);
 
 
-// ✅ API: AI-Based Task Delegation
-import { suggestDelegation } from "./utils/aiTaskDelegation.js";
-
-app.post("/api/ai/task-delegation", async (req, res) => {
-  try {
-    const result = await suggestDelegation(req.body);
-    res.json({ success: true, assignedTo: result });
-  } catch (err) {
-    res.status(500).json({ error: "Task delegation failed", details: err.message });
-  }
-});
 
 
-// ✅ API: AI-Based Task Prioritization
 import { prioritizeTasks } from "./utils/aiTaskPrioritization.js";
+
 app.post("/api/ai/task-prioritization", async (req, res) => {
   try {
-    const result = await prioritizeTasks(req.body);
-    res.json({ success: true, result });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    const { userId } = req.body;
+    const tasks = await prioritizeTasks(userId);
 
-// ✅ API: Balance Analyzer
-import { generateWeeklyReport } from "./utils/balanceAnalyzer.js";
-app.post("/api/ai/balance-analyzer", async (req, res) => {
-  try {
-    const result = await generateWeeklyReport(req.body);
-    res.json({ success: true, result });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ✅ API: Focus Scheduler
-import { suggestFocusTime } from "./utils/focusScheduler.js";
-app.post("/api/ai/focus-scheduler", async (req, res) => {
-  try {
-    const result = await suggestFocusTime(req.body);
-    res.json({ success: true, result });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.json({
+      success: true,
+      tasks,   // ✅ return the sorted tasks here
+    });
+  } catch (error) {
+    console.error("Task prioritization error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

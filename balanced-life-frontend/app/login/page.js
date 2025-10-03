@@ -1,21 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
-export default function Login() {
+const Login = () => {
   const router = useRouter();
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Handle input changes
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    setIsSubmitting(true);
+    setError(null);
 
     // Call NextAuth signIn with your credentials provider
     const result = await signIn("credentials", {
@@ -29,11 +33,20 @@ export default function Login() {
     } else {
       setError(result.error || "Invalid credentials. Please try again.");
     }
+
+    setIsSubmitting(false);
   };
+
+  // Ensure no hydration mismatch by avoiding dynamic values in SSR
+  useEffect(() => {
+    // Any client-side specific logic can go here
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-pink-500">
-      <h1 className="text-3xl font-bold tracking-wide text-grey-500">Welcome to BalancedLife</h1>
+      <h1 className="text-3xl font-bold tracking-wide text-grey-500">
+        Welcome to BalancedLife
+      </h1>
       <div className="bg-white p-6 rounded-lg shadow-md w-96">
         <h2 className="text-2xl font-semibold mb-4 text-purple-500">Login</h2>
         {error && <p className="text-red-500">{error}</p>}
@@ -59,11 +72,14 @@ export default function Login() {
           <button
             type="submit"
             className="w-full bg-purple-500 text-white py-2 rounded hover:bg-purple-600"
+            disabled={isSubmitting}
           >
-            Login
+            {isSubmitting ? "Logging in..." : "Login"}
           </button>
         </form>
       </div>
     </div>
   );
-}
+};
+
+export default Login;

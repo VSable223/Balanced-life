@@ -1,9 +1,37 @@
-import NextAuth from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
+// app/api/auth/[...nextauth]/route.js
+import * as NextAuthModule from "next-auth";
+import * as CredMod from "next-auth/providers/credentials";
 
+/* ---------- normalize helper ---------- */
+function resolve(mod) {
+  if (!mod) return null;
+  if (typeof mod === "function") return mod;
+  if (mod && typeof mod.default === "function") return mod.default;
+  if (mod && mod.default && typeof mod.default.default === "function") return mod.default.default;
+  return null;
+}
+
+/* ---------- normalize imports ---------- */
+const NextAuthFn = resolve(NextAuthModule);
+const Credentials = resolve(CredMod);
+
+if (!NextAuthFn) {
+  console.error("❌ Could not resolve NextAuth function. Got:", NextAuthModule);
+  throw new Error("NextAuth import failed.");
+}
+
+if (!Credentials) {
+  console.error("❌ Could not resolve Credentials provider. Got:", CredMod);
+  throw new Error("Credentials provider import failed.");
+}
+
+console.log("✅ Resolved NextAuth ->", typeof NextAuthFn);
+console.log("✅ Resolved Credentials ->", typeof Credentials);
+
+/* ---------- NextAuth options ---------- */
 export const authOptions = {
   providers: [
-    CredentialsProvider({
+    Credentials({
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "text" },
@@ -11,50 +39,49 @@ export const authOptions = {
       },
       async authorize(credentials) {
         try {
-          // Send login request to Express backend
           const res = await fetch("http://localhost:5000/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(credentials),
+            body: JSON.stringify({
+              email: credentials?.email,
+              password: credentials?.password,
+            }),
           });
 
           if (!res.ok) {
-            throw new Error("Invalid credentials");
+            console.error("Backend login failed:", res.status, await res.text());
+            return null;
           }
 
           const data = await res.json();
-          return { id: data.user._id, name: data.user.name, email: data.user.email, token: data.token };
-        } catch (error) {
-          console.error("Login error:", error);
+          return {
+            id: data.user?._id ?? data.user?.id,
+            name: data.user?.name,
+            email: data.user?.email,
+            token: data.token,
+          };
+        } catch (err) {
+          console.error("Authorize error:", err);
           return null;
         }
       },
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
+  session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, user }) {
-      // On initial sign-in, 'user' will be defined.
-      if (user) {
-        token.user = {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          token: user.token,
-        };
-      }
+      if (user) token.user = user;
       return token;
     },
     async session({ session, token }) {
-      // Expose the user details from the token in the session.
-      session.user = token.user || session.user;
+      session.user = token.user ?? session.user;
       return session;
     },
-  },  
-  pages: {
-    signIn: "/login",
   },
+  pages: { signIn: "/login" },
 };
 
-const handler = NextAuth(authOptions);
+/* ---------- export handlers for App Router ---------- */
+const handler = NextAuthFn(authOptions);
 export { handler as GET, handler as POST };

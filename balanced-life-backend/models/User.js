@@ -6,7 +6,7 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   selfCareReminders: {
     enabled: { type: Boolean, default: true },
-    time: { type: String, default: "18:00" }, // Default: 6 PM
+    time: { type: String, default: "18:00" }, 
     activities: [{ type: String, default: ["Hydration", "Mindfulness", "Stretching"] }],
   },
   settings: {

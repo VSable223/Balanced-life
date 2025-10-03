@@ -3,6 +3,8 @@ import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
+
+
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const [darkMode, setDarkMode] = useState(false);
@@ -15,7 +17,6 @@ export default function ProfilePage() {
   return (
     <div className={`${darkMode ? "bg-gray-900 text-white" : "bg-white text-gray-900"} min-h-screen flex flex-col items-center`}>
       
-      {/* Navbar */}
       <motion.div 
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
@@ -28,7 +29,7 @@ export default function ProfilePage() {
                   </a>
         <button onClick={() => signOut()} className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg transition">
           Logout
-        </button>
+        </button> 
       </motion.div>
 
       {/* Profile Card */}

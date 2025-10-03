@@ -1,61 +1,10 @@
 "use client";
-
-import { useState } from "react";
-import { useSession, signOut } from "next-auth/react";
-import {
-  FaHome,
-  FaTasks,
-  FaInfoCircle,
-  FaUserAlt,
-  FaChevronDown,
-} from "react-icons/fa";
-
-// Navbar Component (Same as Dashboard)
-const Navbar = () => {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  return (
-    <nav className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-black/50 backdrop-blur-md shadow-lg">
-      <div className="flex items-center space-x-4">
-        <h1 className="text-3xl font-bold tracking-wide text-yellow-300">BalancedLife</h1>
-      </div>
-      <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 mt-2 sm:mt-0">
-        <a href="/dashboard" className="hover:text-yellow-300 flex items-center transition-colors">
-          <FaHome className="mr-1" /> Dashboard
-        </a>
-        <a href="/tasks" className="hover:text-yellow-300 flex items-center transition-colors">
-          <FaTasks className="mr-1" /> Tasks
-        </a>
-        <a href="/aboutus" className="hover:text-yellow-300 flex items-center transition-colors">
-          <FaInfoCircle className="mr-1" /> About Us
-        </a>
-      </div>
-      <div className="relative mt-2 sm:mt-0">
-        <button
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex items-center space-x-1 bg-black/40 px-3 py-2 rounded-full hover:bg-black/60 transition"
-        >
-          <FaUserAlt className="text-xl" />
-          <FaChevronDown className={`transition-transform ${dropdownOpen ? "rotate-180" : "rotate-0"}`} />
-        </button>
-        {dropdownOpen && (
-          <div className="absolute right-0 mt-2 w-48 bg-black/70 backdrop-blur-md shadow-md rounded-lg py-2 z-10">
-            <a href="/profile" className="block px-4 py-2 hover:bg-black/50 transition-colors">Profile Information</a>
-            <a href="/report" className="block px-4 py-2 hover:bg-black/50 transition-colors">Task Report</a>
-            <button onClick={() => signOut()} className="w-full text-left px-4 py-2 hover:bg-red-500 transition-colors">Logout</button>
-          </div>
-        )}
-      </div>
-    </nav>
-  );
-};
+import Navbar from "../components/Navbar";
 
 export default function AboutUs() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-700 to-pink-500 text-white">
-      {/* Navbar */}
       <Navbar />
-
       <div className="container mx-auto px-6 py-12">
         {/* Mission & Vision */}
         <section className="text-center mb-12">

@@ -1,68 +1,60 @@
 "use client";
-
+import Navbar from "../components/Navbar";
 import { useEffect, useState } from "react";
-import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import withAuth from "../components/withAuth";
-import {
-  FaHome,
-  FaTasks,
-  FaInfoCircle,
-  FaUserAlt,
-  FaChevronDown,
-} from "react-icons/fa";
 
 function TasksPage() {
   const { data: session } = useSession();
-  const router = useRouter();
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Form state for adding a new task
-  const [formData, setFormData] = useState({
-    title: "",
-    category: "work", // Default category
-    priority: "Medium", // Options: High, Medium, Low
-    deadline: "",
-    duration: "", // In minutes
-    isSelfCare: false,
-  });
-  
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  // Get userId from session (provided via NextAuth callbacks)
   const userId = session?.user?.id;
 
-  // Fetch tasks for the user (assumes GET /api/tasks returns { tasks: [...] })
+  const [tasks, setTasks] = useState([]);
+  const [completedTasks, setCompletedTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editingTask, setEditingTask] = useState(null);
+
+  const [formData, setFormData] = useState({
+    title: "",
+    category: "work",
+    priority: "Medium",
+    deadline: "",
+    duration: "",
+    isSelfCare: false,
+    description: "",
+  });
+
+  // Fetch tasks for the specific user
   useEffect(() => {
     if (!userId) {
       setLoading(false);
       return;
     }
-    async function fetchTasks() {
+
+    const fetchTasks = async () => {
       try {
-        // Fetch Tasks
-        const tasksRes = await fetch("http://localhost:5000/api/tasks/sync", {
+        const res = await fetch("http://localhost:5000/api/tasks/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId }),
         });
-        if (!tasksRes.ok) throw new Error(`Error: ${tasksRes.status}`);
-        const tasksData = await tasksRes.json();
-        setTasks(tasksData.tasks || []);
-        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+
+        if (!res.ok) throw new Error(`Error fetching tasks: ${res.status}`);
+
         const data = await res.json();
-        setTasks(data.tasks || []);
-      } catch (error) {
-        console.error("Error fetching tasks:", error);
+        // Split into incomplete and completed tasks
+        setTasks(data.tasks.filter((t) => !t.completed));
+        setCompletedTasks(data.tasks.filter((t) => t.completed));
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
-    }
+    };
+
     fetchTasks();
   }, [userId]);
 
-  // Handle form field changes
+  // Handle form changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({
@@ -71,124 +63,155 @@ function TasksPage() {
     });
   };
 
-  // Add new task using POST to your backend (Express)
-  const handleAddTask = async (e) => {
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      category: "work",
+      priority: "Medium",
+      deadline: "",
+      duration: "",
+      isSelfCare: false,
+      description: "",
+    });
+    setEditingTask(null);
+  };
+
+  // Add or update task
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!userId) return;
-    // Include userId in the payload
-    const payload = { ...formData, userId };
+
     try {
-      const res = await fetch("http://localhost:5000/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-      const newTask = await res.json();
-      setTasks((prev) => [...prev, newTask]);
-      // Reset form
-      setFormData({
-        title: "",
-        category: "work",
-        priority: "Medium",
-        deadline: "",
-        duration: "",
-        isSelfCare: false,
-      });
-    } catch (error) {
-      console.error("Error adding task:", error);
+      if (editingTask) {
+        const res = await fetch(`http://localhost:5000/api/tasks/${editingTask._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...formData, userId }),
+        });
+        if (!res.ok) throw new Error(`Update failed: ${res.status}`);
+        const updatedTask = await res.json();
+        setTasks((prev) => prev.map((t) => (t._id === updatedTask._id ? updatedTask : t)));
+      } else {
+        const res = await fetch("http://localhost:5000/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...formData, userId }),
+        });
+        if (!res.ok) throw new Error(`Add task failed: ${res.status}`);
+        const newTask = await res.json();
+        setTasks((prev) => [...prev, newTask]);
+      }
+      resetForm();
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  // Delete a task
+  // Delete task
   const handleDeleteTask = async (taskId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setTasks((prev) => prev.filter((task) => task._id !== taskId));
-      }
-    } catch (error) {
-      console.error("Error deleting task:", error);
+      const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+      setTasks((prev) => prev.filter((t) => t._id !== taskId));
+      setCompletedTasks((prev) => prev.filter((t) => t._id !== taskId));
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  // Prioritize a task (update priority, for example)
- const handlePrioritizeTask = async (taskId) => {
-  try {
-    const res = await fetch(`http://localhost:5000/api/ai/task-prioritization`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId }),
+  // Edit task
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+    setFormData({
+      title: task.title,
+      category: task.category,
+      priority: task.priority,
+      deadline: task.deadline ? task.deadline.split("T")[0] : "",
+      duration: task.duration,
+      isSelfCare: task.isSelfCare,
+      description: task.description,
     });
+  };
 
-    // ✅ Parse response only once
-    const data = await res.json();
+  // Single task prioritize (local)
+  const handlePrioritizeTask = (taskId) => {
+    setTasks((prev) =>
+      prev.map((task) => {
+        if (task._id === taskId) {
+          let newPriority = task.priority;
+          if (task.priority === "Low") newPriority = "Medium";
+          else if (task.priority === "Medium") newPriority = "High";
+          return { ...task, priority: newPriority };
+        }
+        return task;
+      })
+    );
+  };
 
-    if (res.ok) {
-      setTasks((prev) =>
-        prev.map((task) =>
-          task._id === taskId ? { ...task, priority: data.result.priority } : task
-        )
-      );
-    } else {
-      console.error("Failed to prioritize task:", data);
+  // Mark task as complete
+  const handleCompleteTask = async (taskId) => {
+    try {
+      const taskToComplete = tasks.find((t) => t._id === taskId);
+      const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...taskToComplete, completed: true }),
+      });
+      if (!res.ok) throw new Error(`Complete task failed: ${res.status}`);
+      const updatedTask = await res.json();
+      setTasks((prev) => prev.filter((t) => t._id !== taskId));
+      setCompletedTasks((prev) => [...prev, updatedTask]);
+    } catch (err) {
+      console.error(err);
     }
-  } catch (error) {
-    console.error("Error prioritizing task:", error);
-  }
-};
+  };
 
-  
+ 
+    // Prioritize all tasks (fetch from backend user-specific)
+  const handlePrioritizeAll = async () => {
+    try {
+      if (!userId) return;
+      const res = await fetch("http://localhost:5000/api/ai/task-prioritization", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
 
-  // Reusable Navbar Component (same as Dashboard)
-  const Navbar = () => (
-    <nav className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-black/50 backdrop-blur-md shadow-lg">
-      <div className="flex items-center space-x-4">
-        <h1 className="text-3xl font-bold tracking-wide text-yellow-300">BalancedLife</h1>
-      </div>
-      <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 mt-2 sm:mt-0">
-        <a href="/dashboard" className="hover:text-yellow-300 flex items-center transition-colors">
-          <FaHome className="mr-1" /> Dashboard
-        </a>
-        <a href="/tasks" className="hover:text-yellow-300 flex items-center transition-colors">
-          <FaTasks className="mr-1" /> Tasks
-        </a>
-        <a href="/aboutus" className="hover:text-yellow-300 flex items-center transition-colors">
-          <FaInfoCircle className="mr-1" /> About Us
-        </a>
-      </div>
-      <div className="relative mt-2 sm:mt-0">
-        <button
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex items-center space-x-1 bg-black/40 px-3 py-2 rounded-full hover:bg-black/60 transition"
-        >
-          <FaUserAlt className="text-xl" />
-          <FaChevronDown className={`transition-transform ${dropdownOpen ? "rotate-180" : "rotate-0"}`} />
-        </button>
-        {dropdownOpen && (
-          <div className="absolute right-0 mt-2 w-48 bg-black/70 backdrop-blur-md shadow-md rounded-lg py-2 z-10">
-            <a href="/profile" className="block px-4 py-2 hover:bg-black/50 transition-colors">Profile Information</a>
-            <a href="/report" className="block px-4 py-2 hover:bg-black/50 transition-colors">Task Report</a>
-            <button onClick={() => signOut()} className="w-full text-left px-4 py-2 hover:bg-red-500 transition-colors">Logout</button>
-          </div>
-        )}
-      </div>
-    </nav>
-  );
+      if (!res.ok) throw new Error(`Error prioritizing all tasks: ${res.status}`);
+
+      const data = await res.json();
+
+      // ✅ Handle backend response structure safely
+      if (data.success && data.tasks) {
+        setTasks(data.tasks.filter((t) => !t.completed));
+        setCompletedTasks(data.tasks.filter((t) => t.completed));
+      } else if (Array.isArray(data)) {
+        // If backend just returns an array of tasks
+        setTasks(data.filter((t) => !t.completed));
+        setCompletedTasks(data.filter((t) => t.completed));
+      } else {
+        console.error("Unexpected response from prioritization API:", data);
+      }
+    } catch (err) {
+      console.error("PrioritizeAll Error:", err);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white">
       <Navbar />
-      <div className="max-w-4xl mx-auto p-6 text-center">
-        <h2 className="text-3xl font-bold mb-6">Your Tasks</h2>
-        
-        {/* New Task Form */}
+      <div className="max-w-4xl mx-auto p-6">
+        <h2 className="text-3xl font-bold mb-6 text-center">Your Tasks</h2>
+
+        {/* Add/Edit Task Form */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
-          <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Add New Task</h3>
-          <form onSubmit={handleAddTask} className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:space-x-4"> 
+          <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
+            {editingTask ? "Edit Task" : "Add New Task"}
+          </h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:space-x-4">
               <input
                 type="text"
                 name="title"
@@ -200,8 +223,8 @@ function TasksPage() {
               />
               <input
                 type="date"
-                name="dueDate"
-                value={formData.dueDate}
+                name="deadline"
+                value={formData.deadline}
                 onChange={handleChange}
                 className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
                 required
@@ -214,7 +237,7 @@ function TasksPage() {
               onChange={handleChange}
               className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
               rows="3"
-            ></textarea>
+            />
             <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
               <select
                 name="category"
@@ -234,9 +257,9 @@ function TasksPage() {
                 onChange={handleChange}
                 className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900 mb-4 sm:mb-0"
               >
-                <option value="Low">Low Priority</option>
-                <option value="Medium">Medium Priority</option>
-                <option value="High">High Priority</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
               </select>
               <input
                 type="number"
@@ -261,18 +284,30 @@ function TasksPage() {
                 type="submit"
                 className="bg-pink-600 hover:bg-pink-700 transition-colors text-white px-6 py-3 rounded-lg shadow-md"
               >
-                Add Task
+                {editingTask ? "Update Task" : "Add Task"}
               </button>
             </div>
           </form>
         </div>
 
-        {/* Tasks List */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Your Tasks</h3>
+        {/* Incomplete Tasks */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Incomplete Tasks</h3>
+            {tasks.length > 0 && (
+              <button
+                onClick={handlePrioritizeAll}
+                className="bg-blue-600 hover:bg-blue-700 transition-colors text-white px-4 py-2 rounded"
+              >
+                Prioritize All
+              </button>
+            )}
+          </div>
           {loading ? (
             <p>Loading tasks...</p>
-          ) : tasks.length > 0 ? (
+          ) : tasks.length === 0 ? (
+            <p>No tasks available.</p>
+          ) : (
             <ul className="space-y-4">
               {tasks.map((task) => (
                 <li
@@ -286,9 +321,15 @@ function TasksPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">Due: {new Date(task.deadline).toLocaleDateString()}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Duration: {task.duration} min</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Priority: {task.priority}</p>
-                    {task.isSelfCare && <p className="text-sm text-green-600 dark:text-green-300">Self-Care Task</p> }
+                    {task.isSelfCare && <p className="text-sm text-green-600 dark:text-green-300">Self-Care Task</p>}
                   </div>
                   <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                    <button
+                      onClick={() => handleEditTask(task)}
+                      className="bg-yellow-500 hover:bg-yellow-600 transition-colors text-white px-4 py-2 rounded"
+                    >
+                      Edit
+                    </button>
                     <button
                       onClick={() => handleDeleteTask(task._id)}
                       className="bg-red-500 hover:bg-red-600 transition-colors text-white px-4 py-2 rounded"
@@ -301,19 +342,46 @@ function TasksPage() {
                     >
                       Prioritize
                     </button>
-                    {/* Placeholder for update or Google Calendar integration */}  
+                    <button
+                      onClick={() => handleCompleteTask(task._id)}
+                      className="bg-purple-600 hover:bg-purple-700 transition-colors text-white px-4 py-2 rounded"
+                    >
+                      Complete
+                    </button>
                   </div>
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+
+        {/* Completed Tasks */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Completed Tasks</h3>
+          {completedTasks.length === 0 ? (
+            <p>No completed tasks.</p>
           ) : (
-            <p>No tasks available.</p>
+            <ul className="space-y-4">
+              {completedTasks.map((task) => (
+                <li
+                  key={task._id}
+                  className="p-4 bg-gray-200 dark:bg-gray-600 rounded-lg shadow flex flex-col sm:flex-row justify-between items-start sm:items-center"
+                >
+                  <div className="text-left">
+                    <h4 className="text-xl font-semibold text-gray-900 dark:text-white">{task.title}</h4>
+                    <p className="text-gray-700 dark:text-gray-300">{task.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Category: {task.category}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Due: {new Date(task.deadline).toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Duration: {task.duration} min</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Priority: {task.priority}</p>
+                    {task.isSelfCare && <p className="text-sm text-green-600 dark:text-green-300">Self-Care Task</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>
-      <footer className="p-4 bg-black/50 backdrop-blur-md text-center text-sm mt-8">
-        © {new Date().getFullYear()} BalancedLife. All rights reserved.
-      </footer>
     </div>
   );
 }

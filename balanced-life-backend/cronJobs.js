@@ -4,7 +4,7 @@ import axios from "axios";
 // Run every Sunday at 8 AM
 cron.schedule("0 8 * * 0", async () => {
   console.log("⏳ Sending weekly reports...");
-  await axios.post("http://localhost:5000/api/sendWeeklyReport");
+  await axios.post("http://localhost:5000/api/report");
 });
 
 

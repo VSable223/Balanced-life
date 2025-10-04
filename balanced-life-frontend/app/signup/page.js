@@ -27,7 +27,7 @@ export default function SignUp() {
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, formData);
       if (res.status === 201) {
         // Signup success
-        router.push("/dashboard");
+        router.push("/login");
       } else {
         // Handle backend error message
         setError(res.data.error || "Signup failed. Please try again.");

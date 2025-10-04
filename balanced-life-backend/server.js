@@ -1,10 +1,11 @@
-import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
 import dotenv from "dotenv";
 
 // ✅ Load environment variables
 dotenv.config();
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+
 
 console.log("starting server...");
 
@@ -37,8 +38,7 @@ import googleRoutes from "./routes/google.js";
 import userRoutes from  "./routes/userRoutes.js";
 
 app.use("/api/users", userRoutes);
-// ✅ Import utils
-import firebase from './utils/firebase.js';
+
 
 // ✅ Import cron jobs if used
 
@@ -119,15 +119,19 @@ app.post("/api/email/send", async (req, res) => {
   }
 });
 
-// ✅ API: Firebase Notification Trigger
+
+// ✅ API: Firebase Notification Trigger (Lazy load after env ready)
 app.post("/api/firebase/notify", async (req, res) => {
   try {
+    const { default: firebase } = await import("./utils/firebase.js");
     const result = await firebase(req.body);
     res.json({ success: true, result });
   } catch (err) {
+    console.error("Firebase notify error:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 

@@ -1,8 +1,7 @@
 import admin from "firebase-admin";
-import fs from "fs";
 
-// Read firebase.json file
-const serviceAccount = JSON.parse(fs.readFileSync("firebase.json", "utf-8"));
+// Parse the FIREBASE_CONFIG env variable
+const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -10,6 +9,5 @@ if (!admin.apps.length) {
   });
 }
 
-// Initialize Firebase Messaging
 export const messaging = admin.messaging();
 export default admin;

@@ -15,7 +15,41 @@ if (!process.env.MONGO_URI) {
 }
 
 const app = express();
-app.use(cors({ origin: "https://balanced-life.vercel.app/" })); // Update with your frontend URL
+
+
+const allowedOrigins = [
+  "https://balanced-life.vercel.app", // ✅ production frontend
+  "http://localhost:3000",            // ✅ for local testing
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn("❌ Blocked by CORS:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // ✅ allow cookies & auth headers
+};
+
+// ✅ Apply CORS globally
+app.use(cors(corsOptions));
+
+// ✅ Handle preflight requests for all routes
+app.options("*", cors(corsOptions));
+
+// ✅ Example route
+app.get("/api/test", (req, res) => {
+  res.json({ message: "CORS is working!" });
+});
+
 app.use(express.json());
 
 // ✅ MongoDB Connection
